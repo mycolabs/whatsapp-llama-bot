@@ -36,10 +36,12 @@ RUN chmod +x start.sh || true
 EXPOSE 8080
 
 # Health check endpoint
+# Use plain $PORT (Railway provides it, defaults to 8080 in start.sh)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:${PORT:-8080}/health')" || exit 1
+    CMD python -c "import requests; import os; port = os.getenv('PORT', '8080'); requests.get(f'http://localhost:{port}/health')" || exit 1
 
-# Run using start script for better flexibility
+# Run using start script with bash explicitly
 # Railway provides PORT environment variable automatically
-CMD ["./start.sh"]
+# Must use bash to ensure $PORT variable expansion works correctly
+CMD ["bash", "start.sh"]
 

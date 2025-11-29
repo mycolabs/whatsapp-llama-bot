@@ -7,8 +7,10 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Start command (optional - uses Dockerfile CMD)
-startCommand = "gunicorn whatsapp_llama_4_bot.webhook_main:app --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --timeout 120"
+# Start command (optional - uses Dockerfile CMD if not specified)
+# Railway requires $PORT without quotes - use start.sh which handles this correctly
+# startCommand is commented out to use Dockerfile CMD instead
+# startCommand = "bash start.sh"
 
 # Health check configuration
 healthcheckPath = "/health"
