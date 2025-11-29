@@ -2,30 +2,17 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 # Use absolute imports for Railway/Gunicorn compatibility
-# Relative imports (from .webhook_utils) require package structure
+# Relative imports (from .webhook_utils) don't work with Gunicorn
 # Absolute imports work in both local and production environments
-try:
-    # Try relative imports first (for local development)
-    from .webhook_utils import (
-        send_message,
-        send_audio_message,
-        llm_reply_to_text_v2
-    )
-    from .ec2_services import (
-        fetch_media,
-        text_to_speech
-    )
-except ImportError:
-    # Fall back to absolute imports (for Railway/Gunicorn)
-    from webhook_utils import (
-        send_message,
-        send_audio_message,
-        llm_reply_to_text_v2
-    )
-    from ec2_services import (
-        fetch_media,
-        text_to_speech
-    )
+from webhook_utils import (
+    send_message,
+    send_audio_message,
+    llm_reply_to_text_v2
+)
+from ec2_services import (
+    fetch_media,
+    text_to_speech
+)
 import os
 import requests
 import httpx
