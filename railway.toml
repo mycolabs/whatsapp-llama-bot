@@ -1,0 +1,35 @@
+# Railway configuration file
+# This file configures how Railway builds and deploys your application
+
+[build]
+# Build command (optional - Railway auto-detects Dockerfile)
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Start command (optional - uses Dockerfile CMD)
+startCommand = "gunicorn whatsapp_llama_4_bot.webhook_main:app --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --timeout 120"
+
+# Health check configuration
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Environment variables (set these in Railway dashboard)
+# Railway will inject PORT automatically
+# You need to set these in Railway dashboard:
+# - VERIFY_TOKEN
+# - APP_ID (if used)
+# - APP_SECRET (if used)
+# - GRAPH_API_VERSION (if used)
+# - WHATSAPP_PHONE_NUMBER_ID
+# - META_ACCESS_TOKEN
+# - METEORA_API_KEY (if used)
+# - LLM_MODEL (if used)
+# - LLM_ROUTER_URL (if used)
+# - GROQ_API_KEY
+# - AGENT_URL
+# - WHATSAPP_API_URL
+# - PHONE_NUMBER_ID
+

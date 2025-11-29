@@ -1,15 +1,31 @@
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from .webhook_utils import (
-    send_message,
-    send_audio_message,
-    llm_reply_to_text_v2
-)
-from .ec2_services import (
-    fetch_media,
-    text_to_speech
-)
+# Use absolute imports for Railway/Gunicorn compatibility
+# Relative imports (from .webhook_utils) require package structure
+# Absolute imports work in both local and production environments
+try:
+    # Try relative imports first (for local development)
+    from .webhook_utils import (
+        send_message,
+        send_audio_message,
+        llm_reply_to_text_v2
+    )
+    from .ec2_services import (
+        fetch_media,
+        text_to_speech
+    )
+except ImportError:
+    # Fall back to absolute imports (for Railway/Gunicorn)
+    from webhook_utils import (
+        send_message,
+        send_audio_message,
+        llm_reply_to_text_v2
+    )
+    from ec2_services import (
+        fetch_media,
+        text_to_speech
+    )
 import os
 import requests
 import httpx
@@ -22,9 +38,24 @@ app = FastAPI()
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 AGENT_URL = os.getenv("AGENT_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "mysecret123")  # Default for local dev, override in production
+
 class WhatsAppMessage(BaseModel):
     object: str
     entry: list
+
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint for Railway and monitoring.
+    Returns 200 OK if the service is running.
+    """
+    return {
+        "status": "healthy",
+        "service": "whatsapp-llama4-bot",
+        "version": "1.0.0"
+    }
 
 
 @app.get("/webhook")
@@ -32,8 +63,6 @@ async def verify_webhook(request: Request):
     mode = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
-
-    VERIFY_TOKEN = "mysecret123"   # same as in Meta
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
         return int(challenge)
