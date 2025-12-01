@@ -1,5 +1,8 @@
+Here's the complete fixed `webhook_main.py` - just copy and replace the entire file:
+
+```python
 from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 # Use absolute imports for Railway/Gunicorn compatibility
 # Relative imports (from .webhook_utils) don't work with Gunicorn
@@ -52,7 +55,7 @@ async def verify_webhook(request: Request):
     challenge = request.query_params.get("hub.challenge")
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        return int(challenge)
+        return PlainTextResponse(content=challenge)
 
     return {"error": "Invalid token"}
 
@@ -134,3 +137,23 @@ async def process_message(data: dict):
     except Exception as e:
         print(f"Groq API error: {e}")
         return {"reply": f"Error: Failed to generate response. {str(e)}"}
+```
+
+---
+
+**Changes made:**
+
+1. ✅ Added `PlainTextResponse` to the imports (line 2)
+2. ✅ Changed `return int(challenge)` to `return PlainTextResponse(content=challenge)` (line 54)
+
+---
+
+**How to update:**
+
+1. Go to GitHub → `webhook_main.py`
+2. Click **Edit** (pencil icon)
+3. Select all (Ctrl+A) and delete
+4. Paste this entire code
+5. Click **"Commit changes"**
+
+Railway will auto-redeploy in 1-2 minutes. Then test your webhook again! 🚀
