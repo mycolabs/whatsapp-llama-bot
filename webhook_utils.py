@@ -12,54 +12,51 @@ from io import BytesIO
 # ---------------------------------
 load_dotenv()
 
-META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
-PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
-WHATSAPP_API_URL = os.getenv("WHATSAPP_API_URL")   # full API url
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-AGENT_URL = os.getenv("AGENT_URL")
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "").strip()
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID", "").strip()
+WHATSAPP_API_URL = os.getenv("WHATSAPP_API_URL", "").strip()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+AGENT_URL = os.getenv("AGENT_URL", "").strip()
 
-# Correct media fetch URL
-MEDIA_URL = f"https://graph.facebook.com/v20.0/{{media_id}}?access_token={META_ACCESS_TOKEN}"
+MEDIA_URL = "https://graph.facebook.com/v20.0/{media_id}"
 
 # Debug
-print("UTILS LOADED →")
+print("\nUTILS LOADED →")
 print("META_ACCESS_TOKEN:", bool(META_ACCESS_TOKEN))
 print("PHONE_NUMBER_ID:", PHONE_NUMBER_ID)
 print("WHATSAPP_API_URL:", WHATSAPP_API_URL)
 print("AGENT_URL:", AGENT_URL)
+print("--------------\n")
 
 
 # -----------------------------------------------------------------
 # SEND WHATSAPP TEXT MESSAGE
 # -----------------------------------------------------------------
 def send_message(to: str, text: str):
-    if not text:
-        print("Error: empty message")
-        return
+    url = WHATSAPP_API_URL.strip()
 
-    if not WHATSAPP_API_URL:
-        print("Error: WHATSAPP_API_URL missing")
+    if not url.startswith("https://"):
+        print("❌ Invalid WHATSAPP_API_URL:", repr(url))
         return
 
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
         "type": "text",
-        "text": {"body": text}
+        "text": {"body": text},
     }
 
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
-    response = requests.post(WHATSAPP_API_URL, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
-        print("✔ WhatsApp message sent successfully")
+        print("✔ WhatsApp message sent")
     else:
         print("❌ Failed to send message:", response.text)
-
 
 
 # Async wrapper
@@ -68,23 +65,19 @@ async def send_message_async(user_phone: str, message: str):
     await loop.run_in_executor(None, send_message, user_phone, message)
 
 
-
 # -----------------------------------------------------------------
 # SEND AUDIO FILE
 # -----------------------------------------------------------------
 async def send_audio_message(to: str, file_path: str):
-
-    media_upload_url = f"https://graph.facebook.com/v20.0/{PHONE_NUMBER_ID}/media"
+    upload_url = f"https://graph.facebook.com/v20.0/{PHONE_NUMBER_ID}/media"
 
     with open(file_path, "rb") as f:
-        files = {
-            "file": ("reply.mp3", f, "audio/mpeg")
-        }
+        files = {"file": ("reply.mp3", f, "audio/mpeg")}
         params = {
             "messaging_product": "whatsapp",
-            "access_token": META_ACCESS_TOKEN
+            "access_token": META_ACCESS_TOKEN,
         }
-        upload_response = requests.post(media_upload_url, params=params, files=files)
+        upload_response = requests.post(upload_url, params=params, files=files)
 
     if upload_response.status_code != 200:
         print("❌ Audio upload failed:", upload_response.text)
@@ -96,12 +89,12 @@ async def send_audio_message(to: str, file_path: str):
         "messaging_product": "whatsapp",
         "to": to,
         "type": "audio",
-        "audio": {"id": media_id}
+        "audio": {"id": media_id},
     }
 
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     msg_response = requests.post(WHATSAPP_API_URL, headers=headers, json=payload)
@@ -112,34 +105,33 @@ async def send_audio_message(to: str, file_path: str):
         print("❌ Failed to send audio:", msg_response.text)
 
 
-
 # -----------------------------------------------------------------
 # PROCESS TEXT → SEND TO AGENT → SEND BACK TO USER
 # -----------------------------------------------------------------
 async def llm_reply_to_text_v2(user_input: str, user_phone: str, media_id: str = None, kind: str = None):
-
     try:
-        payload = {"text": user_input}
-
         print("AGENT_URL USED:", AGENT_URL)
+
+        payload = {"text": user_input}
 
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(AGENT_URL, json=payload)
 
         if resp.status_code != 200:
             print("❌ LLM error:", resp.text)
-            await send_message_async(user_phone, "Server error, please try later")
+            await send_message_async(user_phone, "Server error. Try again later.")
             return
 
         data = resp.json()
         reply = data.get("reply")
 
         if not reply:
-            await send_message_async(user_phone, "Received empty response")
+            print("❌ LLM returned empty reply")
+            await send_message_async(user_phone, "I received an empty reply. Try again.")
             return
 
         await send_message_async(user_phone, reply)
 
     except Exception as e:
-        print("LLM CRASH:", e)
-        await send_message_async(user_phone, "Unexpected server error")
+        print("❌ LLM CRASH:", e)
+        await send_message_async(user_phone, "Unexpected server error.")
